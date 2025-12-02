@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
+import { createClient } from '@/lib/supabase/client'
 
 export default function AuthPage() {
   const router = useRouter()
-  const { signIn } = useAuth()
+  const supabase = createClient()
   const [view, setView] = useState<'signIn' | 'signUp'>('signIn')
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -19,30 +19,40 @@ export default function AuthPage() {
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
+    setMessage(null)
+    
     const formData = new FormData(e.currentTarget)
     const email = formData.get('email') as string
     const password = formData.get('password') as string
 
-    // Mock sign in - just create a user
-    setTimeout(() => {
-      const mockUser = {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: email.split('@')[0],
-        id: 'user_' + Date.now(),
+        password,
+      })
+
+      if (error) {
+        showMessage(error.message || 'Failed to sign in. Please check your credentials.', true)
+        setLoading(false)
+        return
       }
-      signIn(mockUser)
-      showMessage(`Successfully signed in as ${email}!`, false)
-      setLoading(false)
-      setTimeout(() => {
+
+      if (data.user) {
+        showMessage(`Successfully signed in as ${email}!`, false)
         router.push('/dashboard')
         router.refresh()
-      }, 1000)
-    }, 500)
+      }
+    } catch (error) {
+      showMessage('An unexpected error occurred. Please try again.', true)
+      setLoading(false)
+    }
   }
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
+    setMessage(null)
+    
     const formData = new FormData(e.currentTarget)
     const email = formData.get('email') as string
     const password = formData.get('password') as string
@@ -60,44 +70,97 @@ export default function AuthPage() {
       return
     }
 
-    // Mock sign up
-    setTimeout(() => {
-      const mockUser = {
+    try {
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name: email.split('@')[0],
-        id: 'user_' + Date.now(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        showMessage(error.message || 'Failed to create account. Please try again.', true)
+        setLoading(false)
+        return
       }
-      signIn(mockUser)
-      showMessage(`Account created for ${email}! You are now signed in.`, false)
+
+      if (data.user) {
+        // Check if email confirmation is required
+        if (data.session) {
+          // User is immediately signed in (email confirmation disabled)
+          showMessage(`Account created for ${email}! You are now signed in.`, false)
+          router.push('/dashboard')
+          router.refresh()
+        } else {
+          // Email confirmation required
+          showMessage(
+            'Account created! Please check your email to confirm your account before signing in.',
+            false
+          )
+          setView('signIn')
+          setLoading(false)
+        }
+      }
+    } catch (error) {
+      showMessage('An unexpected error occurred. Please try again.', true)
       setLoading(false)
-      setTimeout(() => {
-        router.push('/dashboard')
-        router.refresh()
-      }, 1000)
-    }, 500)
+    }
   }
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setLoading(true)
-    // Mock Google sign in
-    setTimeout(() => {
-      const mockUser = {
-        email: 'jane.doe@gmail.com',
-        name: 'Jane Doe',
-        id: 'user_google_' + Date.now(),
+    setMessage(null)
+    
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        let errorMessage = error.message || 'Failed to sign in with Google.'
+        if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
+          errorMessage = 'Google sign-in is not enabled. Please enable it in your Supabase Dashboard → Authentication → Providers → Google.'
+        }
+        showMessage(errorMessage, true)
+        setLoading(false)
       }
-      signIn(mockUser)
-      showMessage(`Successfully signed in with Google as ${mockUser.email}!`, false)
+      // If successful, user will be redirected to Google, then back to callback
+    } catch (error) {
+      showMessage('An unexpected error occurred. Please try again.', true)
       setLoading(false)
-      setTimeout(() => {
-        router.push('/dashboard')
-        router.refresh()
-      }, 1000)
-    }, 500)
+    }
   }
 
-  const handleOutlookSignIn = () => {
-    showMessage('Outlook/Microsoft sign-in functionality is a placeholder in this demo.', true)
+  const handleOutlookSignIn = async () => {
+    setLoading(true)
+    setMessage(null)
+    
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'email openid profile',
+        },
+      })
+
+      if (error) {
+        let errorMessage = error.message || 'Failed to sign in with Microsoft.'
+        if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
+          errorMessage = 'Microsoft sign-in is not enabled. Please enable it in your Supabase Dashboard → Authentication → Providers → Microsoft (Azure).'
+        }
+        showMessage(errorMessage, true)
+        setLoading(false)
+      }
+      // If successful, user will be redirected to Microsoft, then back to callback
+    } catch (error) {
+      showMessage('An unexpected error occurred. Please try again.', true)
+      setLoading(false)
+    }
   }
 
   return (

@@ -18,7 +18,8 @@ export function getCategories(): string[] {
 }
 
 export function getDefaultCategories(): string[] {
-  // Student-appropriate categories
+  // Student-appropriate categories (expense categories only for backwards compatibility)
+  // Note: Income categories are now managed separately in the database
   return [
     // Week categories
     'Groceries',
@@ -34,8 +35,6 @@ export function getDefaultCategories(): string[] {
     // Additional student categories
     'Tuition',
     'Fees',
-    'Part-time Job (Income)',
-    'Scholarship (Income)',
     'Campus Dining',
     'Streaming',
     'Shopping',

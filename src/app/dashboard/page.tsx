@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { getCategories } from '@/lib/categories'
 import {
   Plus,
   MinusCircle,
@@ -10,6 +9,8 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
+  X,
+  AlertTriangle,
 } from 'lucide-react'
 import TransactionModal from '@/components/TransactionModal'
 import {
@@ -105,54 +106,131 @@ function getYearPeriod(offset: number = 0): string {
   return `${today.getFullYear() + offset}`
 }
 
-// Mock data - student expenses (period will be calculated dynamically based on offset)
-const MOCK_DATA = {
-  week: {
-    expenses: [45, 85, 25, 30, 15],
-    labels: ['Groceries', 'Food/Dining', 'Coffee', 'Transport', 'Entertainment'],
-    budgets: [60, 100, 30, 40, 50],
-  },
-  month: {
-    expenses: [180, 340, 100, 120, 200],
-    labels: ['Rent', 'Groceries', 'Textbooks', 'Transport', 'Entertainment'],
-    budgets: [600, 200, 150, 150, 250],
-  },
-  year: {
-    expenses: [7200, 4080, 1200, 1440, 2400],
-    labels: ['Rent', 'Groceries', 'Textbooks', 'Transportation', 'Entertainment'],
-    budgets: [7200, 2400, 1800, 1800, 3000],
-  },
+// Helper function to get the date range for a period
+function getPeriodDateRange(periodType: 'week' | 'month' | 'year', offset: number = 0): { start: Date; end: Date } {
+  const today = new Date()
+  
+  switch (periodType) {
+    case 'week': {
+      const dayOfWeek = today.getDay()
+      const currentSunday = new Date(today)
+      currentSunday.setDate(today.getDate() - dayOfWeek)
+      const targetSunday = new Date(currentSunday)
+      targetSunday.setDate(currentSunday.getDate() + offset * 7)
+      targetSunday.setHours(0, 0, 0, 0)
+      
+      const targetSaturday = new Date(targetSunday)
+      targetSaturday.setDate(targetSunday.getDate() + 6)
+      targetSaturday.setHours(23, 59, 59, 999)
+      
+      return { start: targetSunday, end: targetSaturday }
+    }
+    case 'month': {
+      const targetDate = new Date(today.getFullYear(), today.getMonth() + offset, 1)
+      const start = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0)
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
+    }
+    case 'year': {
+      const targetYear = today.getFullYear() + offset
+      const start = new Date(targetYear, 0, 1)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(targetYear, 11, 31)
+      end.setHours(23, 59, 59, 999)
+      return { start, end }
+    }
+  }
 }
+
+// Helper function to calculate months difference
+function getMonthsDifference(date1: Date, date2: Date): number {
+  const months = (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth())
+  return Math.abs(months)
+}
+
+interface DashboardData {
+  expenseBreakdown: Array<{ label: string; amount: number }>
+  budgetData: Array<{
+    id: string
+    category: string
+    categoryId: string
+    budget: number
+    spent: number
+  }>
+  totals: {
+    expenses: number
+    income: number
+    net: number
+  }
+  earliestTransactionDate: string | null
+  nextPeriodWithData: string | null
+}
+
+// Color palette for pie chart
+const PIE_COLORS = [
+  '#4f46e5', // indigo
+  '#f97316', // orange
+  '#10b981', // green
+  '#3b82f6', // blue
+  '#ef4444', // red
+  '#8b5cf6', // purple
+  '#f59e0b', // amber
+  '#06b6d4', // cyan
+  '#ec4899', // pink
+  '#84cc16', // lime
+]
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const [currentPeriodType, setCurrentPeriodType] = useState<'week' | 'month' | 'year'>('week')
-  const [untrackedStatements, setUntrackedStatements] = useState(3)
+  const [untrackedStatements, setUntrackedStatements] = useState(0)
   const [currentPeriodOffset, setCurrentPeriodOffset] = useState(0) // 0 = current period, negative = past
-  const [categories, setCategories] = useState<string[]>([])
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [skipWarning, setSkipWarning] = useState<{
+    show: boolean
+    targetOffset: number
+    targetPeriod: string
+    skippedPeriods: number
+    offsetWithData: number | null
+  } | null>(null)
+  const [earliestTransactionDate, setEarliestTransactionDate] = useState<string | null>(null)
+  const [nextPeriodWithData, setNextPeriodWithData] = useState<string | null>(null)
 
-  // Load categories and listen for updates from Goals page
+  // Fetch dashboard data
+  const fetchDashboardData = useCallback(async (periodType: 'week' | 'month' | 'year', offset: number) => {
+    if (!user) return
+
+    setLoading(true)
+    try {
+      const response = await fetch(
+        `/api/dashboard?periodType=${periodType}&offset=${offset}`
+      )
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data')
+      }
+
+      const data: DashboardData = await response.json()
+      setDashboardData(data)
+      setEarliestTransactionDate(data.earliestTransactionDate)
+      setNextPeriodWithData(data.nextPeriodWithData || null)
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+      setDashboardData(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
+
+  // Fetch data when period type or offset changes
   useEffect(() => {
-    const loadCategories = () => {
-      setCategories(getCategories())
+    if (user) {
+      fetchDashboardData(currentPeriodType, currentPeriodOffset)
     }
-    
-    loadCategories()
-    
-    // Listen for category updates
-    window.addEventListener('categories-updated', loadCategories)
-    
-    return () => {
-      window.removeEventListener('categories-updated', loadCategories)
-    }
-  }, [])
-
-  // Check if we're at the current period (cannot go forward)
-  const isCurrentPeriod = currentPeriodOffset === 0
-
-  // Check if there's previous data (for now, allow going back, but structure for future data checks)
-  // When real data is implemented, check if there's data for the previous period
-  const hasPreviousData = true // TODO: Replace with actual data check when fetching real data
+  }, [user, currentPeriodType, currentPeriodOffset, fetchDashboardData])
 
   // Calculate period string based on type and offset
   const getPeriodString = (): string => {
@@ -168,60 +246,229 @@ export default function DashboardPage() {
     }
   }
 
-  // Get data - use categories from goals if available, otherwise use mock data
-  // For now, we'll use mock data but structure it to support dynamic categories
-  const data = MOCK_DATA[currentPeriodType]
-  
-  // TODO: When real data is implemented, filter/update data based on categories from goals page
-  const periodString = getPeriodString()
-  const totalSpent = data.expenses.reduce((sum, val) => sum + val, 0)
-  const totalBudget = data.budgets.reduce((sum, val) => sum + val, 0)
-  const incomeMock =
-    currentPeriodType === 'week' ? 320.0 : currentPeriodType === 'month' ? 1280.0 : 15360.0 // Part-time job income
-  const netFlow = incomeMock - totalSpent
-  const utilization = Math.round((totalSpent / totalBudget) * 100)
+  // Check if we're at the current period (cannot go forward)
+  const isCurrentPeriod = currentPeriodOffset === 0
 
-  // Pie chart data
+  // Calculate the offset for the period containing the earliest transaction date
+  const calculateOffsetForEarliestDate = (): number | null => {
+    if (!earliestTransactionDate) return null
+    
+    const earliestDate = new Date(earliestTransactionDate)
+    const today = new Date()
+    
+    switch (currentPeriodType) {
+      case 'week': {
+        const dayOfWeek = today.getDay()
+        const currentSunday = new Date(today)
+        currentSunday.setDate(today.getDate() - dayOfWeek)
+        currentSunday.setHours(0, 0, 0, 0)
+        
+        const earliestDayOfWeek = earliestDate.getDay()
+        const earliestSunday = new Date(earliestDate)
+        earliestSunday.setDate(earliestDate.getDate() - earliestDayOfWeek)
+        earliestSunday.setHours(0, 0, 0, 0)
+        
+        const diffDays = Math.floor((earliestSunday.getTime() - currentSunday.getTime()) / (1000 * 60 * 60 * 24))
+        return Math.floor(diffDays / 7)
+      }
+      case 'month': {
+        const earliestYear = earliestDate.getFullYear()
+        const earliestMonth = earliestDate.getMonth()
+        const currentYear = today.getFullYear()
+        const currentMonth = today.getMonth()
+        
+        return (earliestYear - currentYear) * 12 + (earliestMonth - currentMonth)
+      }
+      case 'year': {
+        return earliestDate.getFullYear() - today.getFullYear()
+      }
+    }
+  }
+
+  // Check if we can go back (earliest transaction date check)
+  const canGoBack = () => {
+    if (!earliestTransactionDate) return false
+    
+    const currentRange = getPeriodDateRange(currentPeriodType, currentPeriodOffset)
+    const earliestDate = new Date(earliestTransactionDate)
+    
+    // Check if the start of current period is after earliest date
+    return currentRange.start > earliestDate
+  }
+
+  const hasPreviousData = canGoBack()
+
+  // Check if there's data between current and target period
+  const checkForDataGap = (targetOffset: number): { hasGap: boolean; skippedPeriods: number; nextPeriodWithData: string | null } => {
+    if (!earliestTransactionDate || targetOffset >= currentPeriodOffset) {
+      return { hasGap: false, skippedPeriods: 0, nextPeriodWithData: null }
+    }
+
+    // Calculate the offset for the period with the earliest transaction
+    const offsetWithData = calculateOffsetForEarliestDate()
+    if (offsetWithData === null) {
+      return { hasGap: false, skippedPeriods: 0, nextPeriodWithData: null }
+    }
+
+    // Check if the target period would have data
+    const targetRange = getPeriodDateRange(currentPeriodType, targetOffset)
+    const earliestDate = new Date(earliestTransactionDate)
+    earliestDate.setHours(0, 0, 0, 0)
+    
+    // Check if the target period contains the earliest date
+    const targetContainsEarliest = targetRange.start <= earliestDate && targetRange.end >= earliestDate
+    
+    // If target period doesn't contain earliest date, there's a gap
+    if (!targetContainsEarliest) {
+      // If target offset is greater (closer to present) than offset with data, there's a gap
+      // Example: targetOffset = -1, offsetWithData = -5 means we're skipping 4 periods
+      if (targetOffset > offsetWithData) {
+        const skippedPeriods = targetOffset - offsetWithData
+        return { 
+          hasGap: true, 
+          skippedPeriods: skippedPeriods, 
+          nextPeriodWithData: nextPeriodWithData 
+        }
+      }
+      // If target is before the period with data, no gap (we can navigate there normally)
+      return { hasGap: false, skippedPeriods: 0, nextPeriodWithData: null }
+    }
+
+    return { hasGap: false, skippedPeriods: 0, nextPeriodWithData: null }
+  }
+
+  const handlePrevPeriod = () => {
+    const targetOffset = currentPeriodOffset - 1
+    const gapCheck = checkForDataGap(targetOffset)
+
+    if (gapCheck.hasGap && gapCheck.skippedPeriods > 0) {
+      // Calculate the offset for the period that actually has data
+      const offsetWithData = calculateOffsetForEarliestDate()
+      
+      // Use the offset with data as the target (this is where we'll navigate to)
+      const finalOffset = offsetWithData ?? targetOffset
+      
+      // Calculate the target period string for the period with data
+      const targetPeriod = gapCheck.nextPeriodWithData || (() => {
+        switch (currentPeriodType) {
+          case 'week':
+            return getWeekPeriod(finalOffset)
+          case 'month':
+            return getMonthPeriod(finalOffset)
+          case 'year':
+            return getYearPeriod(finalOffset)
+        }
+      })()
+
+      setSkipWarning({
+        show: true,
+        targetOffset: finalOffset, // This is where we'll navigate to
+        targetPeriod, // This is the period string to display
+        skippedPeriods: gapCheck.skippedPeriods,
+        offsetWithData: offsetWithData, // Store the calculated offset with data
+      })
+    } else {
+      setCurrentPeriodOffset(targetOffset)
+    }
+  }
+
+  const handleNextPeriod = () => {
+    // Only allow going forward if we're not at the current period
+    if (currentPeriodOffset < 0) {
+      setCurrentPeriodOffset(currentPeriodOffset + 1)
+    }
+  }
+
+  const confirmSkip = () => {
+    if (skipWarning) {
+      // Navigate to the period that actually has data
+      const offsetToUse = skipWarning.offsetWithData ?? skipWarning.targetOffset
+      setCurrentPeriodOffset(offsetToUse)
+      setSkipWarning(null)
+    }
+  }
+
+  const cancelSkip = () => {
+    // Just close the warning, stay on current period
+    setSkipWarning(null)
+  }
+
+  const handleAddData = () => {
+    setIsTransactionModalOpen(true)
+  }
+
+  const handleSaveTransaction = () => {
+    // Refresh data when transaction is saved
+    fetchDashboardData(currentPeriodType, currentPeriodOffset)
+    // Decrease untracked count when transaction is saved from statements tab
+    if (untrackedStatements > 0) {
+      setUntrackedStatements(untrackedStatements - 1)
+    }
+  }
+
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
+
+  // Prepare chart data from dashboard data
+  const periodString = getPeriodString()
+  const expenseBreakdown = dashboardData?.expenseBreakdown || []
+  const budgetData = dashboardData?.budgetData || []
+  const totals = dashboardData?.totals || { expenses: 0, income: 0, net: 0 }
+
+  const totalSpent = totals.expenses
+  const totalBudget = budgetData.reduce((sum, item) => sum + item.budget, 0)
+  const utilization = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0
+
+  // Pie chart data - expense breakdown
   const pieChartData = {
-    labels: data.labels,
+    labels: expenseBreakdown.map((e) => e.label),
     datasets: [
       {
-        data: data.expenses,
-        backgroundColor: ['#4f46e5', '#f97316', '#10b981', '#3b82f6', '#ef4444'],
+        data: expenseBreakdown.map((e) => e.amount),
+        backgroundColor: PIE_COLORS.slice(0, expenseBreakdown.length),
         hoverOffset: 10,
         borderWidth: 0,
       },
     ],
   }
 
-  // Budget colors based on utilization: Green ≤80%, Yellow 80-95%, Red ≥95%
-  const getBudgetColors = (expenses: number[], budgets: number[]) => {
-    return expenses.map((expense, i) => {
+  // Budget colors based on utilization: Green <50%, Yellow 50-90%, Red ≥90%
+  const getBudgetColors = (spent: number[], budgets: number[]) => {
+    return spent.map((expense, i) => {
       const budget = budgets[i]
+      if (!budget || budget === 0) return '#9ca3af' // Gray for no budget
       const util = (expense / budget) * 100
-      if (util >= 95) return '#ef4444' // Red (≥95%)
-      if (util > 80) return '#f59e0b' // Yellow (80-95%)
-      return '#10b981' // Green (≤80%)
+      if (util >= 90) return '#ef4444' // Red (≥90%)
+      if (util >= 50) return '#f59e0b' // Yellow (50-90%)
+      return '#10b981' // Green (<50%)
     })
   }
 
-  const spentColors = getBudgetColors(data.expenses, data.budgets)
+  const spentColors = getBudgetColors(
+    budgetData.map((b) => b.spent),
+    budgetData.map((b) => b.budget)
+  )
 
-  // Bar chart data
+  // Filter out categories with no budget for the bar chart
+  const budgetDataWithBudgets = budgetData.filter((b) => b.budget > 0)
+  
+  // Bar chart data - budget vs spent (only for categories with budgets)
   const barChartData = {
-    labels: data.labels,
+    labels: budgetDataWithBudgets.map((b) => b.category),
     datasets: [
       {
         label: 'Amount Spent',
-        data: data.expenses,
-        backgroundColor: spentColors,
+        data: budgetDataWithBudgets.map((b) => b.spent),
+        backgroundColor: getBudgetColors(
+          budgetDataWithBudgets.map((b) => b.spent),
+          budgetDataWithBudgets.map((b) => b.budget)
+        ),
         stack: 'stack1',
         borderRadius: 4,
         maxBarThickness: 24,
       },
       {
         label: 'Remaining Budget',
-        data: data.budgets.map((budget, i) => Math.max(0, budget - data.expenses[i])),
+        data: budgetDataWithBudgets.map((b) => Math.max(0, b.budget - b.spent)),
         backgroundColor: '#e5e7eb',
         stack: 'stack1',
         borderRadius: 4,
@@ -230,33 +477,8 @@ export default function DashboardPage() {
     ],
   }
 
-  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
-
-  const handleAddData = () => {
-    setIsTransactionModalOpen(true)
-  }
-
-  const handleSaveTransaction = () => {
-    // Decrease untracked count when transaction is saved from statements tab
-    if (untrackedStatements > 0) {
-      setUntrackedStatements(untrackedStatements - 1)
-    }
-  }
-
-  const handlePrevPeriod = () => {
-    if (hasPreviousData) {
-      setCurrentPeriodOffset(currentPeriodOffset - 1)
-      // TODO: When fetching real data, load data for the previous period
-    }
-  }
-
-  const handleNextPeriod = () => {
-    // Only allow going forward if we're not at the current period
-    if (currentPeriodOffset < 0) {
-      setCurrentPeriodOffset(currentPeriodOffset + 1)
-      // TODO: When fetching real data, load data for the next period
-    }
-  }
+  // Main category for pie chart
+  const mainCategory = expenseBreakdown.length > 0 ? expenseBreakdown[0].label : 'None'
 
   if (!user) {
     return (
@@ -268,6 +490,45 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 antialiased">
+      {/* Skip Warning Modal */}
+      {skipWarning?.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-start mb-4">
+              <AlertTriangle className="w-6 h-6 text-amber-500 mr-3 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Skip to Period with Data?
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  The last date with data is <strong>{skipWarning.targetPeriod}</strong>. Would you like to proceed?
+                </p>
+              </div>
+              <button
+                onClick={cancelSkip}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={cancelSkip}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSkip}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Floating Action Button */}
       <div className="fixed top-20 right-5 z-50">
         <div className="relative">
@@ -278,11 +539,6 @@ export default function DashboardPage() {
           >
             <Plus className="w-8 h-8" />
           </button>
-          {untrackedStatements > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-6 h-6 bg-amber-300 text-gray-900 text-xs font-bold rounded-full flex items-center justify-center px-1.5 shadow-md">
-              {untrackedStatements > 99 ? '99+' : untrackedStatements}
-            </span>
-          )}
         </div>
       </div>
 
@@ -366,127 +622,155 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Main Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Expense Pie Chart */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Expense Breakdown</h2>
-            <div className="flex-grow relative h-96">
-              <Doughnut
-                data={pieChartData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'right',
-                      labels: {
-                        font: { family: 'Inter' },
-                        boxWidth: 12,
-                        usePointStyle: true,
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-gray-500">Loading dashboard data...</p>
+          </div>
+        ) : (
+          <>
+            {/* Main Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              {/* Expense Pie Chart */}
+              <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Expense Breakdown</h2>
+                {expenseBreakdown.length > 0 ? (
+                  <>
+                    <div className="flex-grow relative h-96">
+                      <Doughnut
+                        data={pieChartData}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'right',
+                              labels: {
+                                font: { family: 'Inter' },
+                                boxWidth: 12,
+                                usePointStyle: true,
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </div>
+                    <div className="mt-4 flex flex-wrap justify-center text-sm font-medium space-x-4">
+                      <span className="text-red-600">Total Spent: ${totalSpent.toFixed(2)}</span>
+                      <span className="text-gray-500 hidden sm:inline">|</span>
+                      <span className="text-indigo-600">Main Category: {mainCategory}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-grow flex items-center justify-center h-96">
+                    <p className="text-gray-400">No expenses in this period</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Stats */}
+              <div className="lg:col-span-1 space-y-6">
+                {/* Total Outflow */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500 border border-gray-200">
+                  <p className="text-sm font-medium text-gray-500 flex items-center">
+                    <MinusCircle className="w-4 h-4 mr-2 text-red-500" />
+                    Total Outflow
+                  </p>
+                  <p className="text-3xl font-bold text-red-600 mt-1">
+                    ${totalSpent.toFixed(2)}
+                  </p>
+                  <span className="text-xs text-gray-400 mt-2 block">Total expenses</span>
+                </div>
+
+                {/* Total Inflow */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500 border border-gray-200">
+                  <p className="text-sm font-medium text-gray-500 flex items-center">
+                    <PlusCircle className="w-4 h-4 mr-2 text-green-500" />
+                    Total Inflow
+                  </p>
+                  <p className="text-3xl font-bold text-green-500 mt-1">
+                    ${totals.income.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <span className="text-xs text-gray-400 mt-2 block">Total income</span>
+                </div>
+
+                {/* Net Flow */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-indigo-500 border border-gray-200">
+                  <p className="text-sm font-medium text-gray-500 flex items-center">
+                    <Wallet className="w-4 h-4 mr-2 text-indigo-600" />
+                    Net Flow
+                  </p>
+                  <p className={`text-3xl font-bold mt-1 ${totals.net >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                    ${totals.net.toFixed(2)}
+                  </p>
+                  <span className="text-xs text-gray-500 mt-2 block">
+                    {totals.net >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Budget Goal Bar Chart */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+                <span>Budget Goal Progress</span>
+                {totalBudget > 0 && (
+                  <span className={`text-sm font-semibold ${
+                    utilization >= 95 ? 'text-red-500' : utilization > 80 ? 'text-amber-500' : 'text-green-500'
+                  }`}>
+                    {utilization}% Utilized
+                  </span>
+                )}
+              </h2>
+              {budgetDataWithBudgets.length > 0 ? (
+                <div className="w-full h-80">
+                  <Bar
+                    data={barChartData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      indexAxis: 'y',
+                      scales: {
+                        x: {
+                          stacked: true,
+                          beginAtZero: true,
+                          grid: { display: true },
+                          ticks: {
+                            callback: (value) => '$' + Number(value).toLocaleString(),
+                          },
+                        },
+                        y: {
+                          stacked: true,
+                          grid: { display: false },
+                        },
                       },
-                    },
-                  },
-                }}
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap justify-center text-sm font-medium space-x-4">
-              <span className="text-red-600">Total Spent: ${totalSpent.toFixed(2)}</span>
-              <span className="text-gray-500 hidden sm:inline">|</span>
-              <span className="text-indigo-600">Main Category: {data.labels[0]}</span>
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Total Outflow */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500 flex items-center">
-                <MinusCircle className="w-4 h-4 mr-2 text-red-500" />
-                Total Outflow
-              </p>
-              <p className="text-3xl font-bold text-red-600 mt-1">${totalSpent.toFixed(2)}</p>
-              <span className="text-xs text-red-500 mt-2 block">+$12.50 vs last period</span>
-            </div>
-
-            {/* Total Inflow */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500 flex items-center">
-                <PlusCircle className="w-4 h-4 mr-2 text-green-500" />
-                Total Inflow
-              </p>
-              <p className="text-3xl font-bold text-green-500 mt-1">
-                ${incomeMock.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <span className="text-xs text-gray-400 mt-2 block">Expected Salary Deposit</span>
-            </div>
-
-            {/* Net Flow */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-indigo-500 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500 flex items-center">
-                <Wallet className="w-4 h-4 mr-2 text-indigo-600" />
-                Net Flow
-              </p>
-              <p className="text-3xl font-bold text-gray-800 mt-1">${netFlow.toFixed(2)}</p>
-              <span className="text-xs text-gray-500 mt-2 block">
-                {netFlow >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Budget Goal Bar Chart */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
-            <span>Budget Goal Progress</span>
-            <span className={`text-sm font-semibold ${
-              utilization >= 95 ? 'text-red-500' : utilization > 80 ? 'text-amber-500' : 'text-green-500'
-            }`}>
-              {utilization}% Utilized
-            </span>
-          </h2>
-          <div className="w-full h-80">
-            <Bar
-              data={barChartData}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                scales: {
-                  x: {
-                    stacked: true,
-                    beginAtZero: true,
-                    grid: { display: true },
-                    ticks: {
-                      callback: (value) => '$' + Number(value).toLocaleString(),
-                    },
-                  },
-                  y: {
-                    stacked: true,
-                    grid: { display: false },
-                  },
-                },
-                plugins: {
-                  legend: { position: 'top', labels: { font: { family: 'Inter' } } },
-                  tooltip: {
-                    callbacks: {
-                      label: (context) => {
-                        return (
-                          context.dataset.label +
-                          ': ' +
-                          new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: 'USD',
-                          }).format(context.parsed.x)
-                        )
+                      plugins: {
+                        legend: { position: 'top', labels: { font: { family: 'Inter' } } },
+                        tooltip: {
+                          callbacks: {
+                            label: (context) => {
+                              return (
+                                context.dataset.label +
+                                ': ' +
+                                new Intl.NumberFormat('en-US', {
+                                  style: 'currency',
+                                  currency: 'USD',
+                                }).format(context.parsed.x)
+                              )
+                            },
+                          },
+                        },
                       },
-                    },
-                  },
-                },
-              }}
-            />
-          </div>
-        </div>
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-80 flex items-center justify-center">
+                  <p className="text-gray-400">No budget goals set for this period</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </main>
 
       {/* Transaction Modal */}

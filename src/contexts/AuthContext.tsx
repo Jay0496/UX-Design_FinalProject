@@ -1,70 +1,88 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { getCurrentUser, clearAuth, setUser as setAuthUser, type MockUser } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/client'
+import type { User } from '@supabase/supabase-js'
+
+export interface AuthUser {
+  id: string
+  email: string
+  name?: string
+  avatar_url?: string
+}
 
 interface AuthContextType {
-  user: MockUser | null
+  user: AuthUser | null
   isLoading: boolean
-  signIn: (user: MockUser) => void
-  signOut: () => void
-  checkAuth: () => void
+  signOut: () => Promise<void>
+  checkAuth: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<MockUser | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const checkAuth = () => {
-    const currentUser = getCurrentUser()
-    setUser(currentUser)
-    setIsLoading(false)
+  const supabase = createClient()
+
+  const mapSupabaseUser = (supabaseUser: User | null): AuthUser | null => {
+    if (!supabaseUser) return null
+    
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      name: supabaseUser.user_metadata?.full_name || 
+            supabaseUser.user_metadata?.name || 
+            supabaseUser.email?.split('@')[0] || 
+            'User',
+      avatar_url: supabaseUser.user_metadata?.avatar_url || 
+                  supabaseUser.user_metadata?.picture,
+    }
   }
 
-  const signIn = (userData: MockUser) => {
-    setAuthUser(userData)
-    setUser(userData)
+  const checkAuth = async () => {
+    try {
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser()
+      const mappedUser = mapSupabaseUser(supabaseUser)
+      setUser(mappedUser)
+    } catch (error) {
+      console.error('Error checking auth:', error)
+      setUser(null)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const signOut = () => {
-    // Clear auth immediately
-    clearAuth()
-    // Update state synchronously
-    setUser(null)
-    setIsLoading(false)
-    // Force a re-check to ensure all components update
-    checkAuth()
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut()
+      setUser(null)
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
   }
 
   useEffect(() => {
     // Check initial auth state
     checkAuth()
 
-    // Listen for storage changes (cross-tab synchronization)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'financepro_auth') {
-        checkAuth()
-      }
-    }
-
-    // Listen for custom auth change event (same-tab updates)
-    const handleAuthChange = () => {
-      checkAuth()
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('auth-change', handleAuthChange)
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const mappedUser = mapSupabaseUser(session?.user ?? null)
+      setUser(mappedUser)
+      setIsLoading(false)
+    })
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('auth-change', handleAuthChange)
+      subscription.unsubscribe()
     }
-  }, []) // Remove pathname dependency - only run once on mount
+  }, [])
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signOut, checkAuth }}>
+    <AuthContext.Provider value={{ user, isLoading, signOut, checkAuth }}>
       {children}
     </AuthContext.Provider>
   )

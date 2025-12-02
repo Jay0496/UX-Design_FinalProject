@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Link2, Plus, Search, TrendingUp, Banknote, Wallet, CreditCard, FileText, ChevronRight, Edit, Lock, CheckCircle, Bell } from 'lucide-react'
+import { Link2, Plus, TrendingUp, Banknote, Wallet, CreditCard, FileText, ChevronRight, Edit, Lock, CheckCircle, Bell } from 'lucide-react'
 
 interface Account {
   id: string
@@ -118,11 +118,10 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
 }
 
 export default function AccountsPage() {
-  const [hasLinkedAccounts] = useState(true) // Mock: always show linked accounts
+  const [hasLinkedAccounts] = useState(false) // No linked accounts - always show connection interface
   const [accounts] = useState<Account[]>(MOCK_ACCOUNTS)
   const [transactions] = useState<Transaction[]>(MOCK_TRANSACTIONS)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showLinkAccount, setShowLinkAccount] = useState(false)
+  const [showComingSoon, setShowComingSoon] = useState(false)
 
   // Calculate total net worth
   const totalNetWorth = accounts.reduce((sum, account) => sum + account.balance, 0)
@@ -171,289 +170,114 @@ export default function AccountsPage() {
     }
   }
 
-  // Show bank connection interface if no accounts or if "Link New Account" was clicked
-  if (!hasLinkedAccounts || showLinkAccount) {
-    return (
-      <main className="min-h-screen bg-gray-50 py-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto bg-white p-8 sm:p-10 rounded-xl shadow-2xl border border-gray-100">
-            {/* Header Section */}
-            <div className="text-center mb-10">
-              <Link2 className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
-              <h1 className="text-3xl font-extrabold text-gray-900">Connect Financial Institutions</h1>
-              <p className="mt-3 text-gray-600">
-                Select your bank or broker to securely link your accounts for automated tracking.
-              </p>
-              <p className="mt-1 text-sm text-gray-400">
-                FinancePro uses secure, industry-leading partners for data connection.
-              </p>
-              {showLinkAccount && (
-                <button
-                  onClick={() => setShowLinkAccount(false)}
-                  className="mt-4 text-sm text-gray-600 hover:text-gray-900 underline"
-                >
-                  ← Back to Accounts
-                </button>
-              )}
-            </div>
-
-            {/* Search Bar */}
-            <div className="relative mb-8">
-              <input
-                type="text"
-                placeholder="Search for your bank or broker"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-              />
-              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            </div>
-
-            {/* Bank Grid */}
-            <div className="space-y-8">
-              <h2 className="text-xl font-bold text-gray-900">Popular Institutions</h2>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {/* Bank of America */}
-                <button
-                  onClick={() => {
-                    alert('Redirecting to Bank of America for secure authentication...\n\nYou will be redirected to your bank\'s login page to securely connect your account.')
-                  }}
-                  className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
-                >
-                  <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
-                    B
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Bank of America</span>
-                </button>
-
-                {/* Chase */}
-                <button
-                  onClick={() => {
-                    alert('Redirecting to Chase for secure authentication...\n\nYou will be redirected to your bank\'s login page to securely connect your account.')
-                  }}
-                  className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
-                >
-                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
-                    C
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Chase</span>
-                </button>
-
-                {/* Wells Fargo */}
-                <button
-                  onClick={() => {
-                    alert('Redirecting to Wells Fargo for secure authentication...\n\nYou will be redirected to your bank\'s login page to securely connect your account.')
-                  }}
-                  className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
-                >
-                  <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
-                    W
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Wells Fargo</span>
-                </button>
-
-                {/* Fidelity */}
-                <button
-                  onClick={() => {
-                    alert('Redirecting to Fidelity for secure authentication...\n\nYou will be redirected to your bank\'s login page to securely connect your account.')
-                  }}
-                  className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
-                >
-                  <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
-                    F
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Fidelity</span>
-                </button>
-              </div>
-
-              <div className="text-center pt-4">
-                <p className="text-gray-500 text-sm mb-4">Don&apos;t see your bank listed?</p>
-                <button
-                  onClick={() => {
-                    alert('Opening manual connection form...\n\nYou can manually enter your account details to connect.')
-                  }}
-                  className="flex items-center justify-center w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold text-base hover:bg-indigo-700 transition duration-200 shadow-md shadow-indigo-500/40"
-                >
-                  <Edit className="w-5 h-5 mr-3" />
-                  Connect Manually
-                </button>
-              </div>
-            </div>
-
-            {/* Footer Note */}
-            <p className="mt-8 text-xs text-center text-gray-400">
-              You will be redirected to your financial institution&apos;s website for authentication. Your login
-              credentials are never stored by FinancePro.
+  // Always show bank connection interface with "coming soon" functionality
+  return (
+    <main className="min-h-screen bg-gray-50 py-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto bg-white p-8 sm:p-10 rounded-xl shadow-2xl border border-gray-100">
+          {/* Header Section */}
+          <div className="text-center mb-10">
+            <Link2 className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
+            <h1 className="text-3xl font-extrabold text-gray-900">Connect Financial Institutions</h1>
+            <p className="mt-3 text-gray-600">
+              Select your bank or broker to securely link your accounts for automated tracking.
+            </p>
+            <p className="mt-1 text-sm text-gray-400">
+              FinancePro uses secure, industry-leading partners for data connection.
             </p>
           </div>
-        </div>
-      </main>
-    )
-  }
 
-  // Show "Linked Accounts" view
-  return (
-    <main className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page Header and Actions */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900">My Linked Accounts</h1>
-          <button
-            onClick={() => setShowLinkAccount(true)}
-            className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-green-600 transition duration-200 shadow-md shadow-green-500/30"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Link New Account
-          </button>
-        </div>
+          {/* Bank Grid */}
+          <div className="space-y-8">
+            <h2 className="text-xl font-bold text-gray-900">Popular Institutions</h2>
 
-        {/* Net Worth Summary Card */}
-        <div className="mb-8 bg-indigo-600 text-white p-6 rounded-xl shadow-xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm font-medium opacity-80">Total Net Worth</p>
-              <h2 className="text-4xl font-black mt-1">
-                {formatCurrency(totalNetWorth).replace(/\d+$/, '')}
-                <span className="text-xl opacity-80">
-                  {formatCurrency(totalNetWorth).split('.')[1]}
-                </span>
-              </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* Bank of America */}
+              <button
+                onClick={() => setShowComingSoon(true)}
+                className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
+              >
+                <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
+                  B
+                </div>
+                <span className="text-sm font-medium text-gray-700">Bank of America</span>
+              </button>
+
+              {/* Chase */}
+              <button
+                onClick={() => setShowComingSoon(true)}
+                className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
+              >
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
+                  C
+                </div>
+                <span className="text-sm font-medium text-gray-700">Chase</span>
+              </button>
+
+              {/* Wells Fargo */}
+              <button
+                onClick={() => setShowComingSoon(true)}
+                className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
+              >
+                <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
+                  W
+                </div>
+                <span className="text-sm font-medium text-gray-700">Wells Fargo</span>
+              </button>
+
+              {/* Fidelity */}
+              <button
+                onClick={() => setShowComingSoon(true)}
+                className="flex flex-col items-center justify-center p-4 h-32 border-2 border-gray-200 rounded-xl hover:border-indigo-600 hover:shadow-lg transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-200"
+              >
+                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center text-white font-bold text-xl mb-2">
+                  F
+                </div>
+                <span className="text-sm font-medium text-gray-700">Fidelity</span>
+              </button>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium flex items-center justify-end">
-                <TrendingUp className="w-4 h-4 mr-1 text-green-300" />
-                Last 30 Days
-              </p>
-              <p className="text-lg font-semibold text-green-300">+{netWorthChange}%</p>
+
+            <div className="text-center pt-4">
+              <button
+                onClick={() => setShowComingSoon(true)}
+                className="flex items-center justify-center w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold text-base hover:bg-indigo-700 transition duration-200 shadow-md shadow-indigo-500/40"
+              >
+                <Link2 className="w-5 h-5 mr-3" />
+                Connect to Another Bank
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Linked Accounts Grid */}
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Accounts Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {accounts.map((account) => (
-            <div
-              key={account.id}
-              className={`account-card bg-white p-6 rounded-xl shadow-lg border-t-4 ${getAccountBorderColor(account.type)} hover:transform hover:-translate-y-1 transition-all duration-200 hover:shadow-xl`}
-            >
-              <div className="flex justify-between items-center mb-3">
-                <span className={`text-sm font-semibold ${getAccountTextColor(account.type)}`}>
-                  {account.name}
-                </span>
-                {getAccountIcon(account.type)}
-              </div>
-              <p className="text-xs text-gray-400">
-                {account.institution} ({account.accountNumber})
-              </p>
-              <p
-                className={`text-3xl font-bold mt-2 ${
-                  account.balance < 0 ? 'text-red-600' : ''
-                }`}
-              >
-                {formatCurrency(Math.abs(account.balance)).replace(/\d+$/, '')}
-                <span className={`text-xl ${account.balance < 0 ? 'text-red-400' : 'text-gray-500'}`}>
-                  {formatCurrency(Math.abs(account.balance)).split('.')[1]}
-                </span>
-              </p>
-              <div className="mt-4 flex justify-between text-sm text-gray-500">
-                <span>
-                  {account.type === 'credit' && account.limit
-                    ? `Limit: ${formatCurrency(account.limit)}`
-                    : account.lastInterest
-                    ? `Last Interest: ${formatCurrency(account.lastInterest)}`
-                    : 'Available'}
-                </span>
-                {account.status === 'active' ? (
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                ) : account.type === 'credit' ? (
-                  <Bell className="w-4 h-4 text-yellow-500" />
-                ) : (
-                  <Lock className="w-4 h-4 text-gray-400" />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent Activity Section */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Recent Activity (Statements)</h2>
-          <a
-            href="#"
-            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center"
-          >
-            View All Transactions
-            <ChevronRight className="w-4 h-4 ml-1" />
-          </a>
-        </div>
-
-        {/* Transactions Table */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-x-auto">
-          <table className="w-full whitespace-nowrap">
-            <thead>
-              <tr>
-                <th className="w-1/12 text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase border-b border-gray-200">
-                  Date
-                </th>
-                <th className="w-4/12 text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase border-b border-gray-200">
-                  Description
-                </th>
-                <th className="w-2/12 text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase border-b border-gray-200">
-                  Account
-                </th>
-                <th className="w-2/12 text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase border-b border-gray-200">
-                  Category
-                </th>
-                <th className="w-2/12 text-right py-3 px-4 font-semibold text-gray-500 text-xs uppercase border-b border-gray-200">
-                  Amount
-                </th>
-                <th className="w-1/12 text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase border-b border-gray-200"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((transaction) => (
-                <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-4 px-4 text-sm text-gray-600">{transaction.date}</td>
-                  <td className="py-4 px-4 font-medium text-gray-800">{transaction.description}</td>
-                  <td className="py-4 px-4 text-sm text-gray-600">
-                    {transaction.account} ({transaction.accountNumber})
-                  </td>
-                  <td className="py-4 px-4">
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                        CATEGORY_COLORS[transaction.category]?.bg || 'bg-gray-100'
-                      } ${
-                        CATEGORY_COLORS[transaction.category]?.text || 'text-gray-800'
-                      }`}
-                    >
-                      {transaction.category}
-                    </span>
-                  </td>
-                  <td
-                    className={`py-4 px-4 text-right font-semibold ${
-                      transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {transaction.amount >= 0 ? '+' : ''}
-                    {formatCurrency(transaction.amount)}
-                  </td>
-                  <td className="py-4 px-4">
-                    <FileText className="w-4 h-4 text-gray-400 cursor-pointer hover:text-indigo-600" title="View Statement" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Footer Note */}
+          <p className="mt-8 text-xs text-center text-gray-400">
+            You will be redirected to your financial institution&apos;s website for authentication. Your login
+            credentials are never stored by FinancePro.
+          </p>
         </div>
       </div>
 
-      <style jsx>{`
-        .account-card {
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-      `}</style>
+      {/* Coming Soon Modal */}
+      {showComingSoon && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Link2 className="w-8 h-8 text-indigo-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon</h2>
+              <p className="text-gray-600 mb-6">
+                This feature is currently under development. We&apos;re working hard to bring you secure bank account connections.
+              </p>
+              <button
+                onClick={() => setShowComingSoon(false)}
+                className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-200"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

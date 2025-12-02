@@ -23,16 +23,8 @@ export default function Home() {
               href={isLoggedIn ? '/dashboard' : '/auth'}
               className="inline-flex justify-center items-center px-8 py-3 border border-transparent text-base font-semibold rounded-full shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition duration-300 transform hover:scale-105"
             >
-              Create a Dashboard
+              Get Started
             </Link>
-            <a
-              href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex justify-center items-center px-8 py-3 border-2 border-gray-300 text-base font-semibold rounded-full text-gray-700 bg-white hover:bg-gray-100 transition duration-300"
-            >
-              View Demo
-            </a>
           </div>
         </div>
       </header>
