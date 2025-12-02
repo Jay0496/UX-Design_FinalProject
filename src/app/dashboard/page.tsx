@@ -752,9 +752,9 @@ export default function DashboardPage() {
                                 context.dataset.label +
                                 ': ' +
                                 new Intl.NumberFormat('en-US', {
-                                  style: 'currency',
-                                  currency: 'USD',
-                                }).format(context.parsed.x)
+                              style: 'currency',
+                              currency: 'USD',
+                            }).format(context.parsed.x || 0)
                               )
                             },
                           },

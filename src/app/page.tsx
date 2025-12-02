@@ -109,7 +109,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Pay Off Debt Faster</h3>
               <p className="text-gray-600">
-                Visualize your debt snowball or avalanche strategy and know exactly when you'll be debt-free.
+                Visualize your debt snowball or avalanche strategy and know exactly when you&apos;ll be debt-free.
               </p>
             </div>
           </div>
@@ -131,7 +131,7 @@ export default function Home() {
                 ))}
               </div>
               <p className="italic text-gray-700">
-                "I finally feel in control of my money. The goal setting feature is a game-changer for saving for my wedding!"
+                &quot;I finally feel in control of my money. The goal setting feature is a game-changer for saving for my wedding!&quot;
               </p>
               <p className="mt-4 font-semibold text-sm text-gray-900">- Sarah K., New York</p>
             </div>
@@ -146,7 +146,7 @@ export default function Home() {
                 ))}
               </div>
               <p className="italic text-gray-700">
-                "The best debt management tool I've used. Seeing the payoff date adjust as I make extra payments is so motivating."
+                &quot;The best debt management tool I&apos;ve used. Seeing the payoff date adjust as I make extra payments is so motivating.&quot;
               </p>
               <p className="mt-4 font-semibold text-sm text-gray-900">- Alex T., Toronto</p>
             </div>
@@ -161,7 +161,7 @@ export default function Home() {
                 ))}
               </div>
               <p className="italic text-gray-700">
-                "Fantastic clarity on my overall financial health. The automatic syncing is flawless and saved me hours of manual tracking."
+                &quot;Fantastic clarity on my overall financial health. The automatic syncing is flawless and saved me hours of manual tracking.&quot;
               </p>
               <p className="mt-4 font-semibold text-sm text-gray-900">- Michael R., London</p>
             </div>

@@ -23,9 +23,9 @@ export default function Navbar() {
   }
 
   const userDisplay = user ? {
-    name: user.name,
+    name: user.name || user.email || 'User',
     email: user.email,
-    avatar: `https://placehold.co/40x40/6366f1/ffffff?text=${user.name.charAt(0).toUpperCase()}`,
+    avatar: `https://placehold.co/40x40/6366f1/ffffff?text=${(user.name || user.email || 'U').charAt(0).toUpperCase()}`,
   } : null
 
   return (

@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+// Mark as dynamic because it uses cookies for authentication
+export const dynamic = 'force-dynamic'
+
 interface DateRange {
   start: string // ISO date string
   end: string // ISO date string

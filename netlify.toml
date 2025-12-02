@@ -1,0 +1,27 @@
+[build]
+  # Build command - Next.js build
+  command = "npm run build"
+  
+  # Publish directory - Next.js output directory
+  # Note: @netlify/plugin-nextjs handles this automatically
+  publish = ".next"
+
+# Next.js configuration for Netlify
+# This plugin is required for Next.js to work properly on Netlify
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Environment variables will be set in Netlify dashboard
+# Required variables:
+# - NEXT_PUBLIC_SUPABASE_URL
+# - NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+

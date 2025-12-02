@@ -810,7 +810,7 @@ export default function GoalsPage() {
         
         {goals.length === 0 ? (
           <div className="text-center py-8 text-gray-500 italic">
-            No budget goals set. Click "Add Goal" to get started.
+            No budget goals set. Click &quot;Add Goal&quot; to get started.
           </div>
         ) : (
           <div className="overflow-x-auto">

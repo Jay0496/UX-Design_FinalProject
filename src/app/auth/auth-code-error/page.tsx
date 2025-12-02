@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function AuthCodeError() {
+function AuthCodeErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
   const description = searchParams.get('description')
@@ -48,6 +49,20 @@ export default function AuthCodeError() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthCodeError() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center p-24 bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AuthCodeErrorContent />
+    </Suspense>
   )
 }
 

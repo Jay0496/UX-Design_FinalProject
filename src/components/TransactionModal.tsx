@@ -1485,7 +1485,7 @@ export default function TransactionModal({
                               </datalist>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              Type a category name. It will be created automatically if it doesn't exist.
+                              Type a category name. It will be created automatically if it doesn&apos;t exist.
                             </p>
                           </div>
 

@@ -242,7 +242,7 @@ export async function PUT(request: Request) {
     // Fetch existing transaction to verify ownership
     const { data: existing, error: fetchError } = await supabase
       .from('transactions')
-      .select('id, debt_id')
+      .select('id, debt_id, date, amount')
       .eq('id', id)
       .eq('user_id', user.id)
       .single()
